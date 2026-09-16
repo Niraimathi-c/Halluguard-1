@@ -17,10 +17,12 @@ class MemoryRetriever(EvidenceRetriever):
         scored=[]
         for e in self.documents:
             overlap=len(q & self._terms(e.text)) / max(1,len(q))
-            e2=e.model_copy(update={"relevance":overlap})
-            scored.append(e2)
-        return sorted(scored,key=lambda x:(x.relevance,x.authority,x.freshness,x.corroboration),reverse=True)[:k]
+            scored.append(e.model_copy(update={"relevance":overlap}))
+        return sorted(scored,key=lambda x:(x.relevance,x.authority,x.freshness,x.corroboration,x.independence),reverse=True)[:k]
 
 def rank_evidence(items: list[Evidence]) -> list[Evidence]:
-    """Weighted source-aware ranking; keeps provenance explicit."""
-    return sorted(items,key=lambda e: .40*e.relevance+.18*e.authority+.12*e.freshness+.12*e.corroboration+.10*e.independence+.08*e.provenance_score if hasattr(e,'provenance_score') else (.40*e.relevance+.18*e.authority+.12*e.freshness+.12*e.corroboration+.10*e.independence),reverse=True)
+    """Rank by relevance, authority, freshness, corroboration, and independence."""
+    def score(e):
+        return (.40*e.relevance + .18*e.authority + .12*e.freshness +
+                .12*e.corroboration + .10*e.independence + .08*(1.0 if e.provenance != "unknown" else 0.0))
+    return sorted(items,key=score,reverse=True)
